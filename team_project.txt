@@ -1,0 +1,51 @@
+#include <avr/io.h>
+
+#define CDS_100lux 731   //100럭스일때 ADC값
+
+
+volatile int surround_lux=0;   //기준 광량값
+
+void init_LED();
+unsigned short read_adc();
+void moving_arm_func(unsigned short surround_lux);
+
+int main(void)
+{
+   unsigned short data;
+   DDRA=0xff;
+   DDRF=0x00;
+   init_LED();
+   
+   while (1)
+   {
+      data=read_adc();
+      moving_arm_func(data);
+   }
+}
+
+void init_LED()
+{
+   ADMUX=0x40;
+   ADCSRA=0x87;
+}
+
+unsigned short read_adc()
+{
+   unsigned char adc_low, adc_high;
+   unsigned short surround_lux;
+   ADCSRA |= 0x40;            //ADC start conversion, ADSC(비트6)=1
+   while((ADCSRA&0x10)!=0x10)
+   ;                     // ADC 변환 완료 검사(ADCSRA의 4번비트인 ADIF가 변환완료여부 판단하는 비트)
+   adc_low=ADCL;               //변환된 LOW값 읽어오기. 반드시 ADCL부터 읽어와야함
+   adc_high=ADCH;               //변환된 HIGH값 읽어오기.
+   surround_lux=(adc_high<<8)|adc_low;      //surround_lux 는 HIGH값과 LOW값을 순서대로 연결한 16비트 값(단 위에서 오른쪽 정렬해줌)
+   return surround_lux;
+}
+
+void moving_arm_func(unsigned short surround_lux)   //주변광량의 값과 비교하여 LED ON/OFF
+{
+   if(surround_lux<=CDS_100lux)
+   PORTA=0xff;
+   else if(surround_lux>=CDS_100lux)
+   PORTA=0x00;
+}
